@@ -39,7 +39,6 @@ onMounted(() => {
   initLeafletMap()
   addPropertyMarkers()
 
-  // Слушаем изменения в списке недвижимости
   watch(properties, () => {
     updatePropertyMarkers()
   }, { deep: true })
@@ -52,24 +51,19 @@ onUnmounted(() => {
 })
 
 const initLeafletMap = () => {
-  // Создаем карту
   map = L.map(mapContainer.value).setView(
     [mapSettings.value.center.lat, mapSettings.value.center.lng],
     mapSettings.value.zoom
   )
 
-  // Добавляем тайлы карты
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors',
     maxZoom: 19
   }).addTo(map)
 
-  // Обработчик клика по карте для добавления новой недвижимости
   map.on('click', (e) => {
     if (confirm('Добавить новую недвижимость в этом месте?')) {
-      // Открываем модальное окно с предзаполненными координатами
       agentStore.openModal('propertyModal')
-      // Можно сохранить координаты для использования в модальном окне
       agentStore.tempCoordinates = { lat: e.latlng.lat, lng: e.latlng.lng }
     }
   })
@@ -82,24 +76,20 @@ const addPropertyMarkers = () => {
 }
 
 const updatePropertyMarkers = () => {
-  // Удаляем старые маркеры
   markers.forEach(marker => {
     map.removeLayer(marker)
   })
   markers = []
 
-  // Создаем новые маркеры для каждой недвижимости
   properties.value.forEach(property => {
     createPropertyMarker(property)
   })
 }
 
 const createPropertyMarker = (property) => {
-  // Создаем иконку маркера в зависимости от типа и статуса
   const iconColor = property.status === 'paid' ? 'green' : 'orange'
   const iconSymbol = property.dealType === 'sale' ? '🏠' : '🏢'
 
-  // Создаем HTML для кастомной иконки
   const iconHtml = `
     <div style="
       background-color: ${iconColor};
@@ -124,12 +114,10 @@ const createPropertyMarker = (property) => {
     iconAnchor: [15, 15]
   })
 
-  // Создаем маркер
   const marker = L.marker([property.coordinates.lat, property.coordinates.lng], {
     icon: customIcon
   }).addTo(map)
 
-  // Создаем popup с информацией о недвижимости
   const popupContent = createPopupContent(property)
   marker.bindPopup(popupContent)
 
@@ -181,7 +169,6 @@ const createPopupContent = (property) => {
   `
 }
 
-// Функции управления картой
 const zoomIn = () => {
   const currentZoom = map.getZoom()
   map.setZoom(currentZoom + 1)
@@ -197,20 +184,17 @@ const resetView = () => {
 }
 
 const toggleView = () => {
-  // Переключение между обычной картой и спутниковым видом
   const currentView = mapSettings.value.view
   const newView = currentView === 'map' ? 'satellite' : 'map'
 
   agentStore.updateMapSettings({ view: newView })
 
-  // Удаляем текущий слой
   map.eachLayer((layer) => {
     if (layer instanceof L.TileLayer) {
       map.removeLayer(layer)
     }
   })
 
-  // Добавляем новый слой
   if (newView === 'satellite') {
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles © Esri',
@@ -228,7 +212,6 @@ const addProperty = () => {
   agentStore.openModal('propertyModal')
 }
 
-// Глобальная функция для редактирования недвижимости (вызывается из popup)
 window.editProperty = (propertyId) => {
   const property = properties.value.find(p => p.id === propertyId)
   if (property) {
@@ -237,21 +220,18 @@ window.editProperty = (propertyId) => {
   }
 }
 
-// Обработка изменения размера окна
 const handleResize = () => {
   if (map) {
     map.invalidateSize()
   }
 }
 
-// Добавляем обработчик изменения размера
 onMounted(() => {
   window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
-  // Очищаем глобальную функцию
   delete window.editProperty
 })
 </script>

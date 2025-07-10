@@ -61,6 +61,8 @@
           <textarea id="propertyDescription" v-model="formData.description" rows="3"></textarea>
         </div>
 
+        <TagsInput v-model="formData.tags" />
+
         <button type="submit" class="btn btn-primary">Сохранить и оплатить</button>
       </form>
     </div>
@@ -70,6 +72,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useAgentStore } from '@/stores/agent'
+import TagsInput from './TagsInput.vue'
 
 const agentStore = useAgentStore()
 
@@ -82,6 +85,7 @@ const formData = ref({
   dealType: '',
   propertyType: '',
   description: '',
+  tags: []
 })
 
 const resetForm = () => {
@@ -92,6 +96,7 @@ const resetForm = () => {
     dealType: '',
     propertyType: '',
     description: '',
+    tags: []
   }
 }
 

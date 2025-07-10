@@ -7,25 +7,25 @@
       </div>
 
       <div class="modal-body">
-  
+
         <div class="section">
           <h4 class="section-title">📋 Основная информация</h4>
           <form @submit.prevent="saveProperty">
             <div class="form-group">
               <label for="editTitle">Название *</label>
-              <input 
-                type="text" 
-                id="editTitle" 
+              <input
+                type="text"
+                id="editTitle"
                 v-model="formData.title"
                 required
               >
             </div>
-            
+
             <div class="form-group">
               <label for="editAddress">Адрес *</label>
-              <input 
-                type="text" 
-                id="editAddress" 
+              <input
+                type="text"
+                id="editAddress"
                 v-model="formData.address"
                 required
               >
@@ -34,9 +34,9 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="editPrice">Цена *</label>
-                <input 
-                  type="number" 
-                  id="editPrice" 
+                <input
+                  type="number"
+                  id="editPrice"
                   v-model="formData.price"
                   required
                 >
@@ -64,17 +64,35 @@
 
             <div class="form-group">
               <label for="editDescription">Описание</label>
-              <textarea 
-                id="editDescription" 
+              <textarea
+                id="editDescription"
                 v-model="formData.description"
                 rows="3"
               ></textarea>
             </div>
 
+            <TagsInput v-model="formData.tags" />
+
+            <PropertyStatus
+              v-model="formData.propertyStatus"
+              :deal-type="formData.dealType"
+            />
+
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">Сохранить изменения</button>
             </div>
           </form>
+        </div>
+
+        <div class="section">
+          <h4>📅 Календарь и события</h4>
+          <PropertyCalendar
+            :deal-type="formData.dealType"
+            :property-id="selectedProperty?.id"
+            :events="calendarEvents"
+            @add-event="addCalendarEvent"
+            @remove-event="removeCalendarEvent"
+          />
         </div>
 
         <div v-if="formData.dealType === 'rent'" class="section">
@@ -107,7 +125,7 @@
               </div>
             </div>
           </div>
-          
+
           <div v-if="currentTenant" class="current-tenant">
             <h5>Текущий арендатор</h5>
             <div class="tenant-info">
@@ -116,8 +134,8 @@
               <p><strong>Email:</strong> {{ currentTenant.email }}</p>
               <p><strong>Паспорт:</strong> {{ currentTenant.passportData }}</p>
             </div>
-            <button 
-              type="button" 
+            <button
+              type="button"
               class="btn btn-danger btn-small"
               @click="endCurrentRental"
             >
@@ -166,8 +184,8 @@
                 <input type="number" v-model="newTenant.deposit">
               </div>
             </div>
-            <button 
-              type="button" 
+            <button
+              type="button"
               class="btn btn-primary"
               @click="addTenant"
             >
@@ -183,6 +201,9 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useAgentStore } from '@/stores/agent'
+import TagsInput from './TagsInput.vue'
+import PropertyStatus from './PropertyStatus.vue'
+import PropertyCalendar from './PropertyCalendar.vue'
 
 const agentStore = useAgentStore()
 
@@ -195,7 +216,9 @@ const formData = ref({
   price: '',
   dealType: '',
   propertyType: '',
-  description: ''
+  description: '',
+  tags: [],
+  propertyStatus: 'available'
 })
 
 const newTenant = ref({
@@ -221,6 +244,46 @@ const rentalPeriods = computed(() => {
     return selectedProperty.value.rental.rentPeriods || []
   }
   return []
+})
+
+const calendarEvents = computed(() => {
+  if (!selectedProperty.value) return []
+
+  const events = []
+
+  if (selectedProperty.value.showings) {
+    selectedProperty.value.showings.forEach(showing => {
+      events.push({
+        id: showing.id,
+        date: showing.date,
+        type: 'showing',
+        title: `Показ ${showing.clientName}`,
+        time: showing.time,
+        clientName: showing.clientName,
+        clientPhone: showing.clientPhone,
+        comment: showing.comment
+      })
+    })
+  }
+
+  if (selectedProperty.value.rental && selectedProperty.value.rental.rentPeriods) {
+    selectedProperty.value.rental.rentPeriods.forEach(period => {
+      const startDate = new Date(period.startDate)
+      const endDate = new Date(period.endDate)
+
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        events.push({
+          id: `rental-${period.id}-${d.getTime()}`,
+          date: new Date(d),
+          type: 'rented',
+          title: `Арендовано: ${period.tenant?.name || 'Неизвестно'}`,
+          comment: `Аренда до ${formatDate(endDate)}`
+        })
+      }
+    })
+  }
+
+  return events
 })
 
 const formatDate = (date) => {
@@ -249,7 +312,9 @@ const loadPropertyData = () => {
       price: selectedProperty.value.price,
       dealType: selectedProperty.value.dealType,
       propertyType: selectedProperty.value.propertyType,
-      description: selectedProperty.value.description || ''
+      description: selectedProperty.value.description || '',
+      tags: selectedProperty.value.tags || [],
+      propertyStatus: selectedProperty.value.propertyStatus || 'available'
     }
   }
 }
@@ -288,7 +353,7 @@ const saveProperty = () => {
 }
 
 const addTenant = () => {
-  if (!selectedProperty.value || !newTenant.value.name || !newTenant.value.phone || 
+  if (!selectedProperty.value || !newTenant.value.name || !newTenant.value.phone ||
       !newTenant.value.startDate || !newTenant.value.endDate || !newTenant.value.monthlyRent) {
     alert('Пожалуйста, заполните все обязательные поля')
     return
@@ -310,6 +375,31 @@ const addTenant = () => {
   agentStore.addRentalPeriod(selectedProperty.value.id, tenantData)
   resetNewTenant()
   alert('Арендатор успешно добавлен!')
+}
+
+const addCalendarEvent = (eventData) => {
+  if (!selectedProperty.value) return
+
+  if (eventData.type === 'showing') {
+    // Добавляем показ
+    agentStore.addShowing(selectedProperty.value.id, {
+      date: eventData.date,
+      time: eventData.time,
+      clientName: eventData.clientName,
+      clientPhone: eventData.clientPhone,
+      comment: eventData.comment
+    })
+  } else if (eventData.type === 'rented') {
+    // TODO: добавить доп логику обработки
+  }
+}
+
+const removeCalendarEvent = (eventId) => {
+  if (!selectedProperty.value) return
+
+  if (typeof eventId === 'number') {
+    agentStore.removeShowing(selectedProperty.value.id, eventId)
+  }
 }
 
 const endCurrentRental = () => {
@@ -607,16 +697,16 @@ watch(isOpen, (newValue) => {
   .form-row {
     flex-direction: column;
   }
-  
+
   .modal-content {
     width: 98%;
     margin: 1%;
   }
-  
+
   .modal-body {
     padding: 1rem;
   }
-  
+
   .section {
     padding: 1rem;
   }

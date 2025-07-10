@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { propertyService } from '@/services/propertyService.js'
 
 export const useAgentStore = defineStore('agent', {
   state: () => ({
@@ -11,7 +12,7 @@ export const useAgentStore = defineStore('agent', {
       avatar: '👤',
       personalLink: 'https://realestate.com/agent/ivan-petrov'
     },
-    
+
     properties: [
       {
         id: 1,
@@ -21,10 +22,21 @@ export const useAgentStore = defineStore('agent', {
         dealType: 'sale',
         propertyType: '2+1',
         description: 'Прекрасная квартира в самом центре Москвы',
-        coordinates: { lat: 55.7558, lng: 37.6176 }, 
+        coordinates: { lat: 55.7558, lng: 37.6176 },
         status: 'paid',
         createdAt: new Date('2024-01-15'),
-    
+        tags: ['Центр города', 'Евроремонт', 'Рядом метро', 'Балкон'],
+        propertyStatus: 'available', // available, sold, reserved
+        showings: [
+          {
+            id: 1,
+            date: new Date('2024-07-15'),
+            time: '14:00',
+            clientName: 'Иван Петров',
+            clientPhone: '+7 (999) 123-45-67',
+            comment: 'Первичный показ, клиент заинтересован'
+          }
+        ],
         rental: null
       },
       {
@@ -38,7 +50,9 @@ export const useAgentStore = defineStore('agent', {
         coordinates: { lat: 55.7522, lng: 37.5927 },
         status: 'unpaid',
         createdAt: new Date('2024-02-10'),
-  
+        tags: ['Центр города', 'Мебель', 'Техника', 'Рядом метро'],
+        propertyStatus: 'rented', // available, rented, reserved
+        showings: [],
         rental: {
           currentTenant: {
             name: 'Анна Иванова',
@@ -67,13 +81,13 @@ export const useAgentStore = defineStore('agent', {
         }
       }
     ],
-  
+
     mapSettings: {
       zoom: 12,
-      center: { lat: 55.7558, lng: 37.6176 }, 
+      center: { lat: 55.7558, lng: 37.6176 },
       view: 'map'
     },
-    
+
     modals: {
       propertyModal: false,
       profileModal: false,
@@ -89,17 +103,17 @@ export const useAgentStore = defineStore('agent', {
     propertiesByStatus: (state) => (status) => {
       return state.properties.filter(property => property.status === status)
     },
-    
+
     propertiesByDealType: (state) => (dealType) => {
       return state.properties.filter(property => property.dealType === dealType)
     },
-    
+
     totalProperties: (state) => state.properties.length,
-    
+
     paidPropertiesCount: (state) => {
       return state.properties.filter(property => property.status === 'paid').length
     },
-    
+
     unpaidPropertiesCount: (state) => {
       return state.properties.filter(property => property.status === 'unpaid').length
     }
@@ -119,6 +133,9 @@ export const useAgentStore = defineStore('agent', {
         status: 'unpaid',
         createdAt: new Date(),
         coordinates: coordinates,
+        tags: propertyData.tags || [],
+        propertyStatus: 'available',
+        showings: [],
         rental: propertyData.dealType === 'rent' ? {
           currentTenant: null,
           rentPeriods: [],
@@ -130,24 +147,24 @@ export const useAgentStore = defineStore('agent', {
       }
 
       this.properties.push(newProperty)
-      this.tempCoordinates = null 
+      this.tempCoordinates = null
       return newProperty
     },
-    
+
     updateProperty(propertyId, propertyData) {
       const index = this.properties.findIndex(p => p.id === propertyId)
       if (index !== -1) {
         this.properties[index] = { ...this.properties[index], ...propertyData }
       }
     },
-    
+
     removeProperty(propertyId) {
       const index = this.properties.findIndex(p => p.id === propertyId)
       if (index !== -1) {
         this.properties.splice(index, 1)
       }
     },
-   
+
     payForProperty(propertyId) {
       const property = this.properties.find(p => p.id === propertyId)
       if (property) {
@@ -158,21 +175,21 @@ export const useAgentStore = defineStore('agent', {
     updateMapSettings(settings) {
       this.mapSettings = { ...this.mapSettings, ...settings }
     },
-    
+
     openModal(modalName) {
       this.modals[modalName] = true
     },
-    
+
     closeModal(modalName) {
       this.modals[modalName] = false
     },
-    
+
     closeAllModals() {
       Object.keys(this.modals).forEach(key => {
         this.modals[key] = false
       })
     },
-   
+
     generateRandomCoordinates() {
       const moscowBounds = {
         north: 55.9,
@@ -242,12 +259,125 @@ export const useAgentStore = defineStore('agent', {
         }
       }
     },
+
+    updatePropertyStatus(propertyId, status) {
+      const property = this.properties.find(p => p.id === propertyId)
+      if (property) {
+        property.propertyStatus = status
+      }
+    },
+
+    addShowing(propertyId, showingData) {
+      const property = this.properties.find(p => p.id === propertyId)
+      if (property) {
+        const newShowing = {
+          id: Date.now(),
+          ...showingData,
+          date: new Date(showingData.date)
+        }
+        property.showings.push(newShowing)
+        return newShowing
+      }
+    },
+
+    updateShowing(propertyId, showingId, updateData) {
+      const property = this.properties.find(p => p.id === propertyId)
+      if (property) {
+        const showingIndex = property.showings.findIndex(s => s.id === showingId)
+        if (showingIndex !== -1) {
+          property.showings[showingIndex] = {
+            ...property.showings[showingIndex],
+            ...updateData,
+            date: updateData.date ? new Date(updateData.date) : property.showings[showingIndex].date
+          }
+        }
+      }
+    },
+
+    removeShowing(propertyId, showingId) {
+      const property = this.properties.find(p => p.id === propertyId)
+      if (property) {
+        const showingIndex = property.showings.findIndex(s => s.id === showingId)
+        if (showingIndex !== -1) {
+          property.showings.splice(showingIndex, 1)
+        }
+      }
+    },
+
     copyPersonalLink() {
       if (navigator.clipboard) {
         navigator.clipboard.writeText(this.agent.personalLink)
         return true
       }
       return false
+    },
+
+    async loadPropertiesFromApi(filters = {}) {
+      try {
+        const result = await propertyService.getProperties(filters)
+        this.properties = result.properties.map(prop =>
+          propertyService.transformFromApiFormat(prop)
+        )
+        return result
+      } catch (error) {
+        console.error('Failed to load properties:', error)
+        throw error
+      }
+    },
+
+    async createPropertyViaApi(propertyData) {
+      try {
+        const apiResponse = await propertyService.createProperty(propertyData)
+        const newProperty = propertyService.transformFromApiFormat(apiResponse)
+        this.properties.push(newProperty)
+        return newProperty
+      } catch (error) {
+        console.error('Failed to create property:', error)
+        throw error
+      }
+    },
+
+    async updatePropertyViaApi(propertyId, updateData) {
+      try {
+        const property = this.properties.find(p => p.id === propertyId)
+        if (!property) {
+          throw new Error('Property not found')
+        }
+
+        const apiResponse = await propertyService.updateProperty(property.id, updateData)
+        const updatedProperty = propertyService.transformFromApiFormat(apiResponse)
+
+        const index = this.properties.findIndex(p => p.id === propertyId)
+        if (index !== -1) {
+          this.properties[index] = updatedProperty
+        }
+
+        return updatedProperty
+      } catch (error) {
+        console.error('Failed to update property:', error)
+        throw error
+      }
+    },
+
+    async deletePropertyViaApi(propertyId) {
+      try {
+        const property = this.properties.find(p => p.id === propertyId)
+        if (!property) {
+          throw new Error('Property not found')
+        }
+
+        await propertyService.deleteProperty(property.id)
+
+        const index = this.properties.findIndex(p => p.id === propertyId)
+        if (index !== -1) {
+          this.properties.splice(index, 1)
+        }
+
+        return true
+      } catch (error) {
+        console.error('Failed to delete property:', error)
+        throw error
+      }
     }
   }
 })

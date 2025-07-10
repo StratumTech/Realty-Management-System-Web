@@ -23,14 +23,14 @@
 </template>
 
 <script setup>
-import HeaderComponent from './HeaderComponent.vue'
+import HeaderComponent from '../ui/HeaderComponent.vue'
 import AgentCard from './AgentCard.vue'
 import PersonalLink from './PersonalLink.vue'
-import MapContainer from './MapContainer.vue'
-import PropertiesSection from './PropertiesSection.vue'
-import PropertyModal from './PropertyModal.vue'
+import MapContainer from '../ui/MapContainer.vue'
+import PropertiesSection from '../property/PropertiesSection.vue'
+import PropertyModal from '../property/PropertyModal.vue'
 import ProfileModal from './ProfileModal.vue'
-import EditPropertyModal from './EditPropertyModal.vue'
+import EditPropertyModal from '../property/EditPropertyModal.vue'
 </script>
 
 <style scoped>
