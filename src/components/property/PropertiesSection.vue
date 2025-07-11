@@ -1,7 +1,18 @@
 <template>
   <div class="properties-section">
-    <div class="section-title">
-      🏢 Моя недвижимость
+    <div class="section-header">
+      <div class="section-title">
+        🏢 Моя недвижимость
+      </div>
+      <button
+        class="refresh-btn"
+        @click="refreshProperties"
+        :disabled="isRefreshing"
+        :title="isRefreshing ? 'Обновление...' : 'Обновить список недвижимости'"
+      >
+        <span class="refresh-icon" :class="{ 'spinning': isRefreshing }">🔄</span>
+        {{ isRefreshing ? 'Обновление...' : 'Обновить' }}
+      </button>
     </div>
 
     <PropertyFilters
@@ -94,6 +105,7 @@ import PropertyFilters from './PropertyFilters.vue'
 const agentStore = useAgentStore()
 
 const properties = computed(() => agentStore.properties)
+const isRefreshing = ref(false)
 const currentFilters = ref({
   dealType: '',
   propertyType: '',
@@ -101,6 +113,7 @@ const currentFilters = ref({
   priceFrom: null,
   priceTo: null,
   tagSearch: '',
+  selectedFeatures: [],
   availableFrom: '',
   availableTo: '',
   sortBy: 'createdAt-desc'
@@ -133,6 +146,18 @@ const filteredProperties = computed(() => {
     filtered = filtered.filter(p =>
       p.tags && p.tags.some(tag => tag.toLowerCase().includes(searchTerm))
     )
+  }
+
+  // Фильтрация по выбранным особенностям
+  if (currentFilters.value.selectedFeatures && currentFilters.value.selectedFeatures.length > 0) {
+    filtered = filtered.filter(p => {
+      if (!p.tags || p.tags.length === 0) return false
+
+      // Проверяем, что все выбранные особенности присутствуют в тегах недвижимости
+      return currentFilters.value.selectedFeatures.every(feature =>
+        p.tags.some(tag => tag.toLowerCase().includes(feature.toLowerCase()))
+      )
+    })
   }
 
   if (currentFilters.value.availableFrom || currentFilters.value.availableTo) {
@@ -258,6 +283,20 @@ const sortProperties = (properties, sortBy) => {
   })
 }
 
+const refreshProperties = async () => {
+  if (isRefreshing.value) return
+
+  isRefreshing.value = true
+  try {
+    await agentStore.loadPropertiesFromApi()
+  } catch (error) {
+    console.error('Ошибка при обновлении списка недвижимости:', error)
+    // Можно добавить уведомление пользователю об ошибке
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
 const handleFilterChange = (filters) => {
   currentFilters.value = { ...filters }
 }
@@ -291,14 +330,62 @@ const removeProperty = (propertyId) => {
   overflow-y: auto;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
 .section-title {
   font-size: 1.2rem;
   font-weight: bold;
   color: #333;
-  margin-bottom: 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #4a7c59 0%, #2d5a27 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(74, 124, 89, 0.3);
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a8c69 0%, #3d6a37 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 124, 89, 0.4);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.refresh-icon {
+  font-size: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.refresh-icon.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .properties-list {
