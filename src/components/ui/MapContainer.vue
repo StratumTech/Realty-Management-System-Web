@@ -3,7 +3,12 @@
     <div class="map-title">
       🗺️ Карта недвижимости
       <div style="margin-left: auto;">
-        <button class="btn btn-primary btn-small" @click="addProperty">
+        <button
+          class="btn btn-primary btn-small"
+          @click="addProperty"
+          :disabled="!canAddProperties"
+          :title="!canAddProperties ? 'Оплатите подписку для добавления объектов' : ''"
+        >
           ➕ Добавить объект
         </button>
       </div>
@@ -23,17 +28,17 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useAgentStore } from '@/stores/agent'
+import { geocodingService } from '@/services/geocodingService'
 
 const agentStore = useAgentStore()
 const mapContainer = ref(null)
 
-// Leaflet объекты
 let map = null
 let markers = []
 
-// Настройки карты
 const mapSettings = computed(() => agentStore.mapSettings)
-const properties = computed(() => agentStore.properties)
+const properties = computed(() => agentStore.getVisibleProperties())
+const canAddProperties = computed(() => agentStore.canEditProperties())
 
 onMounted(() => {
   initLeafletMap()
@@ -61,10 +66,40 @@ const initLeafletMap = () => {
     maxZoom: 19
   }).addTo(map)
 
-  map.on('click', (e) => {
-    if (confirm('Добавить новую недвижимость в этом месте?')) {
-      agentStore.openModal('propertyModal')
-      agentStore.tempCoordinates = { lat: e.latlng.lat, lng: e.latlng.lng }
+  map.on('click', async (e) => {
+    if (!canAddProperties.value) {
+      alert('Оплатите подписку для добавления недвижимости')
+      return
+    }
+
+    const lat = e.latlng.lat
+    const lng = e.latlng.lng
+
+    try {
+      const loadingPopup = L.popup()
+        .setLatLng([lat, lng])
+        .setContent('<div style="text-align: center;">🔄 Получение адреса...</div>')
+        .openOn(map)
+
+      const address = await geocodingService.reverseGeocode(lat, lng)
+
+      map.closePopup(loadingPopup)
+
+      if (confirm(`Добавить новую недвижимость по адресу:\n${address}?`)) {
+        agentStore.tempCoordinates = { lat, lng }
+        agentStore.tempAddress = address
+        agentStore.openModal('propertyModal')
+      }
+    } catch (error) {
+      map.closePopup()
+
+      console.error('Ошибка получения адреса:', error)
+
+      if (confirm(`Не удалось получить адрес для данной точки.\nДобавить недвижимость с координатами ${lat.toFixed(6)}, ${lng.toFixed(6)}?`)) {
+        agentStore.tempCoordinates = { lat, lng }
+        agentStore.tempAddress = `Координаты: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+        agentStore.openModal('propertyModal')
+      }
     }
   })
 }
@@ -148,6 +183,25 @@ const createPopupContent = (property) => {
     `
   }
 
+  let photosSection = ''
+  if (property.photos && property.photos.length > 0) {
+    const photosHtml = property.photos.slice(0, 3).map((photo, index) =>
+      `<img src="${photo}" alt="Фото ${index + 1}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; margin-right: 4px; cursor: pointer;" onclick="openPhotoModal('${photo}')" />`
+    ).join('')
+
+    const morePhotos = property.photos.length > 3 ? `<span style="font-size: 0.8rem; color: #666;">+${property.photos.length - 3} фото</span>` : ''
+
+    photosSection = `
+      <div style="margin-top: 10px;">
+        <strong>Фотографии:</strong><br>
+        <div style="margin-top: 5px;">
+          ${photosHtml}
+          ${morePhotos}
+        </div>
+      </div>
+    `
+  }
+
   return `
     <div style="min-width: 200px;">
       <h4 style="margin: 0 0 8px 0; color: #333;">${property.title}</h4>
@@ -160,6 +214,7 @@ const createPopupContent = (property) => {
         </span>
       </div>
       ${rentalInfo}
+      ${photosSection}
       <div style="margin-top: 10px;">
         <button onclick="editProperty(${property.id})" style="background: #4caf50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;">
           ✏️ Редактировать
@@ -209,6 +264,10 @@ const toggleView = () => {
 }
 
 const addProperty = () => {
+  if (!canAddProperties.value) {
+    alert('Оплатите подписку для добавления недвижимости')
+    return
+  }
   agentStore.openModal('propertyModal')
 }
 
@@ -218,6 +277,47 @@ window.editProperty = (propertyId) => {
     agentStore.selectedProperty = property
     agentStore.openModal('editPropertyModal')
   }
+}
+
+window.openPhotoModal = (photoUrl) => {
+  const modal = document.createElement('div')
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    cursor: pointer;
+  `
+
+  const img = document.createElement('img')
+  img.src = photoUrl
+  img.style.cssText = `
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 8px;
+  `
+
+  modal.appendChild(img)
+  document.body.appendChild(modal)
+
+  modal.addEventListener('click', () => {
+    document.body.removeChild(modal)
+  })
+
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      document.body.removeChild(modal)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }
+  document.addEventListener('keydown', handleEscape)
 }
 
 const handleResize = () => {
@@ -233,6 +333,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   delete window.editProperty
+  delete window.openPhotoModal
 })
 </script>
 
@@ -292,7 +393,6 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* Стили для кастомных маркеров */
 :deep(.custom-property-marker) {
   background: transparent !important;
   border: none !important;

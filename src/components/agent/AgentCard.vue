@@ -1,6 +1,16 @@
 <template>
   <div class="agent-card">
-    <div class="avatar">{{ agent.avatar }}</div>
+    <div class="avatar">
+      <img
+        v-if="agent.avatar && agent.avatar.startsWith('http')"
+        :src="agent.avatar"
+        :alt="agent.name"
+        class="avatar-image"
+      />
+      <span v-else class="avatar-text">
+        {{ agent.avatar || agent.name?.charAt(0)?.toUpperCase() || '👤' }}
+      </span>
+    </div>
     <div class="agent-name">{{ agent.name }}</div>
     <div class="agent-region">{{ getRegionName(agent.region) }}</div>
     <div class="agent-contacts">
@@ -62,6 +72,20 @@ const editProfile = () => {
   font-size: 2rem;
   margin: 0 auto 1rem;
   box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+  overflow: hidden;
+  position: relative;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-text {
+  color: white;
+  font-weight: bold;
 }
 
 .agent-name {

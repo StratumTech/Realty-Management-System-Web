@@ -73,13 +73,15 @@
 
             <TagsInput v-model="formData.tags" />
 
+            <PhotosManager v-model="formData.photos" />
+
             <PropertyStatus
               v-model="formData.propertyStatus"
               :deal-type="formData.dealType"
             />
 
             <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+              <button type="submit" class="btn btn-primary">Сохранить</button>
             </div>
           </form>
         </div>
@@ -202,6 +204,7 @@
 import { ref, computed, watch } from 'vue'
 import { useAgentStore } from '@/stores/agent'
 import TagsInput from './TagsInput.vue'
+import PhotosManager from './PhotosManager.vue'
 import PropertyStatus from './PropertyStatus.vue'
 import PropertyCalendar from './PropertyCalendar.vue'
 
@@ -218,6 +221,7 @@ const formData = ref({
   propertyType: '',
   description: '',
   tags: [],
+  photos: [],
   propertyStatus: 'available'
 })
 
@@ -314,6 +318,7 @@ const loadPropertyData = () => {
       propertyType: selectedProperty.value.propertyType,
       description: selectedProperty.value.description || '',
       tags: selectedProperty.value.tags || [],
+      photos: selectedProperty.value.photos || [],
       propertyStatus: selectedProperty.value.propertyStatus || 'available'
     }
   }
@@ -381,7 +386,6 @@ const addCalendarEvent = (eventData) => {
   if (!selectedProperty.value) return
 
   if (eventData.type === 'showing') {
-    // Добавляем показ
     agentStore.addShowing(selectedProperty.value.id, {
       date: eventData.date,
       time: eventData.time,

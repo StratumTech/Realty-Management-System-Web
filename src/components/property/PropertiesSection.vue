@@ -4,15 +4,17 @@
       <div class="section-title">
         🏢 Моя недвижимость
       </div>
-      <button
-        class="refresh-btn"
-        @click="refreshProperties"
-        :disabled="isRefreshing"
-        :title="isRefreshing ? 'Обновление...' : 'Обновить список недвижимости'"
-      >
-        <span class="refresh-icon" :class="{ 'spinning': isRefreshing }">🔄</span>
-        {{ isRefreshing ? 'Обновление...' : 'Обновить' }}
-      </button>
+      <div class="header-actions">
+        <button
+          class="refresh-btn"
+          @click="refreshProperties"
+          :disabled="isRefreshing"
+          :title="isRefreshing ? 'Обновление...' : 'Обновить список недвижимости'"
+        >
+          <span class="refresh-icon" :class="{ 'spinning': isRefreshing }">🔄</span>
+          {{ isRefreshing ? 'Обновление...' : 'Обновить' }}
+        </button>
+      </div>
     </div>
 
     <PropertyFilters
@@ -26,14 +28,10 @@
         v-for="property in filteredProperties"
         :key="property.id"
         class="property-card"
-        :class="{ 'unpaid': property.status === 'unpaid' }"
       >
         <div class="property-header">
           <h4 class="property-title">{{ property.title }}</h4>
           <div class="status-badges">
-            <span class="status-badge" :class="`status-${property.status}`">
-              {{ property.status === 'paid' ? 'Оплачено' : 'Не оплачено' }}
-            </span>
             <span class="property-status-badge" :class="`property-status-${property.propertyStatus}`">
               {{ getPropertyStatusText(property.propertyStatus, property.dealType) }}
             </span>
@@ -67,21 +65,18 @@
 
         <div class="property-actions">
           <button
-            v-if="property.status === 'unpaid'"
-            class="btn btn-primary btn-small"
-            @click="payForProperty(property.id)"
-          >
-            💳 Оплатить (500₽)
-          </button>
-          <button
             class="btn btn-outline btn-small"
             @click="editProperty(property)"
+            :disabled="!canEditProperties"
+            :title="!canEditProperties ? 'Оплатите подписку для редактирования' : ''"
           >
             ✏️ Редактировать
           </button>
           <button
             class="btn btn-danger btn-small"
             @click="removeProperty(property.id)"
+            :disabled="!canEditProperties"
+            :title="!canEditProperties ? 'Оплатите подписку для удаления' : ''"
           >
             🗑️ Удалить
           </button>
@@ -104,8 +99,9 @@ import PropertyFilters from './PropertyFilters.vue'
 
 const agentStore = useAgentStore()
 
-const properties = computed(() => agentStore.properties)
+const properties = computed(() => agentStore.getVisibleProperties())
 const isRefreshing = ref(false)
+const canEditProperties = computed(() => agentStore.canEditProperties())
 const currentFilters = ref({
   dealType: '',
   propertyType: '',
@@ -291,7 +287,6 @@ const refreshProperties = async () => {
     await agentStore.loadPropertiesFromApi()
   } catch (error) {
     console.error('Ошибка при обновлении списка недвижимости:', error)
-    // Можно добавить уведомление пользователю об ошибке
   } finally {
     isRefreshing.value = false
   }
@@ -301,18 +296,21 @@ const handleFilterChange = (filters) => {
   currentFilters.value = { ...filters }
 }
 
-const payForProperty = (propertyId) => {
-  if (confirm('Оплатить размещение объекта на карте за 500₽?')) {
-    agentStore.payForProperty(propertyId)
-  }
-}
-
 const editProperty = (property) => {
+  if (!canEditProperties.value) {
+    alert('Оплатите подписку для редактирования недвижимости')
+    return
+  }
   agentStore.selectedProperty = property
   agentStore.openModal('editPropertyModal')
 }
 
 const removeProperty = (propertyId) => {
+  if (!canEditProperties.value) {
+    alert('Оплатите подписку для удаления недвижимости')
+    return
+  }
+
   if (confirm('Вы действительно хотите удалить этот объект?')) {
     agentStore.removeProperty(propertyId)
   }
@@ -335,6 +333,12 @@ const removeProperty = (propertyId) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .section-title {
@@ -388,6 +392,8 @@ const removeProperty = (propertyId) => {
   to { transform: rotate(360deg); }
 }
 
+
+
 .properties-list {
   display: flex;
   flex-direction: column;
@@ -407,10 +413,7 @@ const removeProperty = (propertyId) => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.property-card.unpaid {
-  border-left: 4px solid #ffc107;
-  background: #fff8e1;
-}
+
 
 .property-header {
   display: flex;
@@ -504,15 +507,7 @@ const removeProperty = (propertyId) => {
   font-weight: 500;
 }
 
-.status-paid {
-  background: #d4edda;
-  color: #155724;
-}
 
-.status-unpaid {
-  background: #fff3cd;
-  color: #856404;
-}
 
 .property-status-badge {
   padding: 0.2rem 0.6rem;

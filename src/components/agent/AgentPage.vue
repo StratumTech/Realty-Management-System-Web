@@ -12,6 +12,8 @@
       <div class="sidebar">
         <AgentCard />
 
+        <SubscriptionInfo />
+
         <PersonalLink />
       </div>
     </div>
@@ -19,18 +21,21 @@
     <PropertyModal />
     <ProfileModal />
     <EditPropertyModal />
+    <SubscriptionModal />
   </div>
 </template>
 
 <script setup>
 import HeaderComponent from '../ui/HeaderComponent.vue'
 import AgentCard from './AgentCard.vue'
+import SubscriptionInfo from './SubscriptionInfo.vue'
 import PersonalLink from './PersonalLink.vue'
 import MapContainer from '../ui/MapContainer.vue'
 import PropertiesSection from '../property/PropertiesSection.vue'
 import PropertyModal from '../property/PropertyModal.vue'
 import ProfileModal from './ProfileModal.vue'
 import EditPropertyModal from '../property/EditPropertyModal.vue'
+import SubscriptionModal from './SubscriptionModal.vue'
 </script>
 
 <style scoped>

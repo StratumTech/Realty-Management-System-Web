@@ -19,13 +19,43 @@
 
         <div class="form-group">
           <label for="propertyAddress">Адрес *</label>
-          <input
-            type="text"
-            id="propertyAddress"
-            v-model="formData.address"
-            placeholder="Москва, ул. Тверская, 1"
-            required
-          />
+          <div class="address-input-container">
+            <input
+              type="text"
+              id="propertyAddress"
+              v-model="formData.address"
+              @input="onAddressInput"
+              @blur="hideAddressSuggestions"
+              @keydown="handleAddressKeydown"
+              placeholder="Москва, ул. Тверская, 1"
+              required
+            />
+            <button
+              type="button"
+              class="geocode-btn"
+              @click="geocodeAddress"
+              :disabled="!formData.address || isGeocoding"
+              title="Найти координаты по адресу"
+            >
+              {{ isGeocoding ? '🔄' : '🔍' }}
+            </button>
+          </div>
+
+          <div v-if="addressSuggestions.length > 0" class="address-suggestions">
+            <div
+              v-for="(suggestion, index) in addressSuggestions"
+              :key="index"
+              class="address-suggestion"
+              :class="{ 'highlighted': selectedSuggestionIndex === index }"
+              @mousedown="selectAddressSuggestion(suggestion)"
+            >
+              {{ suggestion.formatted_address }}
+            </div>
+          </div>
+
+          <div v-if="geocodingStatus" class="geocoding-status" :class="geocodingStatus.type">
+            {{ geocodingStatus.message }}
+          </div>
         </div>
 
         <div class="form-row">
@@ -63,7 +93,9 @@
 
         <TagsInput v-model="formData.tags" />
 
-        <button type="submit" class="btn btn-primary">Сохранить и оплатить</button>
+        <PhotosManager v-model="formData.photos" />
+
+        <button type="submit" class="btn btn-primary">Добавить</button>
       </form>
     </div>
   </div>
@@ -73,6 +105,8 @@
 import { ref, computed, watch } from 'vue'
 import { useAgentStore } from '@/stores/agent'
 import TagsInput from './TagsInput.vue'
+import PhotosManager from './PhotosManager.vue'
+import { geocodingService } from '@/services/geocodingService'
 
 const agentStore = useAgentStore()
 
@@ -85,8 +119,15 @@ const formData = ref({
   dealType: '',
   propertyType: '',
   description: '',
-  tags: []
+  tags: [],
+  photos: []
 })
+
+const isGeocoding = ref(false)
+const geocodingStatus = ref(null)
+const addressSuggestions = ref([])
+const selectedSuggestionIndex = ref(-1)
+const searchTimeout = ref(null)
 
 const resetForm = () => {
   formData.value = {
@@ -96,13 +137,126 @@ const resetForm = () => {
     dealType: '',
     propertyType: '',
     description: '',
-    tags: []
+    tags: [],
+    photos: []
+  }
+
+  isGeocoding.value = false
+  geocodingStatus.value = null
+  addressSuggestions.value = []
+  selectedSuggestionIndex.value = -1
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+    searchTimeout.value = null
   }
 }
 
 const closeModal = () => {
   agentStore.closeModal('propertyModal')
+  agentStore.tempAddress = null
+  agentStore.tempCoordinates = null
   resetForm()
+}
+
+const onAddressInput = () => {
+  geocodingStatus.value = null
+  selectedSuggestionIndex.value = -1
+
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+
+  searchTimeout.value = setTimeout(async () => {
+    if (formData.value.address && formData.value.address.length >= 3) {
+      try {
+        const suggestions = await geocodingService.searchAddresses(formData.value.address, 5)
+        addressSuggestions.value = suggestions
+      } catch (error) {
+        console.error('Ошибка поиска адресов:', error)
+        addressSuggestions.value = []
+      }
+    } else {
+      addressSuggestions.value = []
+    }
+  }, 500)
+}
+
+const hideAddressSuggestions = () => {
+  setTimeout(() => {
+    addressSuggestions.value = []
+    selectedSuggestionIndex.value = -1
+  }, 200)
+}
+
+const handleAddressKeydown = (event) => {
+  if (addressSuggestions.value.length === 0) return
+
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      selectedSuggestionIndex.value = Math.min(
+        selectedSuggestionIndex.value + 1,
+        addressSuggestions.value.length - 1
+      )
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      selectedSuggestionIndex.value = Math.max(selectedSuggestionIndex.value - 1, -1)
+      break
+    case 'Enter':
+      event.preventDefault()
+      if (selectedSuggestionIndex.value >= 0) {
+        selectAddressSuggestion(addressSuggestions.value[selectedSuggestionIndex.value])
+      } else {
+        geocodeAddress()
+      }
+      break
+    case 'Escape':
+      addressSuggestions.value = []
+      selectedSuggestionIndex.value = -1
+      break
+  }
+}
+
+const selectAddressSuggestion = (suggestion) => {
+  formData.value.address = suggestion.formatted_address
+  addressSuggestions.value = []
+  selectedSuggestionIndex.value = -1
+
+  agentStore.tempCoordinates = { lat: suggestion.lat, lng: suggestion.lng }
+
+  geocodingStatus.value = {
+    type: 'success',
+    message: '✅ Координаты найдены автоматически'
+  }
+}
+
+const geocodeAddress = async () => {
+  if (!formData.value.address || isGeocoding.value) return
+
+  isGeocoding.value = true
+  geocodingStatus.value = null
+
+  try {
+    const result = await geocodingService.forwardGeocode(formData.value.address)
+
+    formData.value.address = result.formatted_address
+
+    agentStore.tempCoordinates = { lat: result.lat, lng: result.lng }
+
+    geocodingStatus.value = {
+      type: 'success',
+      message: '✅ Координаты найдены успешно'
+    }
+  } catch (error) {
+    console.error('Ошибка геокодирования:', error)
+    geocodingStatus.value = {
+      type: 'error',
+      message: '❌ ' + error.message
+    }
+  } finally {
+    isGeocoding.value = false
+  }
 }
 
 const saveProperty = () => {
@@ -138,6 +292,12 @@ const saveProperty = () => {
 
 watch(isOpen, (newValue) => {
   if (newValue) {
+    resetForm()
+
+    if (agentStore.tempAddress) {
+      formData.value.address = agentStore.tempAddress
+    }
+
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
         closeModal()
@@ -308,5 +468,95 @@ watch(isOpen, (newValue) => {
   .modal-content {
     padding: 1.5rem;
   }
+
+  .address-input-container {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* Стили для геокодирования */
+.address-input-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  position: relative;
+}
+
+.address-input-container input {
+  flex: 1;
+}
+
+.geocode-btn {
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, #4a7c59 0%, #2d5a27 100%);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.geocode-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a8c69 0%, #3d6a37 100%);
+}
+
+.geocode-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.address-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.address-suggestion {
+  padding: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s ease;
+}
+
+.address-suggestion:hover,
+.address-suggestion.highlighted {
+  background-color: #f0f8ff;
+}
+
+.address-suggestion:last-child {
+  border-bottom: none;
+}
+
+.geocoding-status {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.geocoding-status.success {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+
+.geocoding-status.error {
+  background: #ffeaea;
+  color: #c62828;
+  border: 1px solid #f44336;
 }
 </style>

@@ -10,7 +10,30 @@ export const useAgentStore = defineStore('agent', {
       phone: '+7 (999) 123-45-67',
       region: 'moscow',
       avatar: '👤',
-      personalLink: 'https://realestate.com/agent/ivan-petrov'
+      personalLink: 'https://realestate.com/agent/ivan-petrov',
+      subscriptionStatus: 'active', // 'active' | 'inactive'
+      lastPaymentDate: new Date('2024-07-01'),
+      nextPaymentDate: new Date('2024-08-01'),
+      paymentHistory: [
+        {
+          id: 1,
+          date: '2024-07-01',
+          amount: 25,
+          status: 'success'
+        },
+        {
+          id: 2,
+          date: '2024-06-01',
+          amount: 20,
+          status: 'success'
+        },
+        {
+          id: 3,
+          date: '2024-05-01',
+          amount: 15,
+          status: 'success'
+        }
+      ]
     },
 
     properties: [
@@ -23,10 +46,13 @@ export const useAgentStore = defineStore('agent', {
         propertyType: '2+1',
         description: 'Прекрасная квартира в самом центре Москвы',
         coordinates: { lat: 55.7558, lng: 37.6176 },
-        status: 'paid',
         createdAt: new Date('2024-01-15'),
         tags: ['Центр города', 'Евроремонт', 'Рядом метро', 'Балкон'],
         propertyStatus: 'available', // available, sold, reserved
+        photos: [
+          'https://via.placeholder.com/400x300/4CAF50/FFFFFF?text=Фото+1',
+          'https://via.placeholder.com/400x300/2E7D32/FFFFFF?text=Фото+2'
+        ],
         showings: [
           {
             id: 1,
@@ -48,10 +74,13 @@ export const useAgentStore = defineStore('agent', {
         propertyType: 'studio',
         description: 'Уютная студия для молодой семьи',
         coordinates: { lat: 55.7522, lng: 37.5927 },
-        status: 'unpaid',
         createdAt: new Date('2024-02-10'),
         tags: ['Центр города', 'Мебель', 'Техника', 'Рядом метро'],
         propertyStatus: 'rented', // available, rented, reserved
+        photos: [
+          'https://via.placeholder.com/400x300/9C27B0/FFFFFF?text=Студия+1',
+          'https://via.placeholder.com/400x300/7B1FA2/FFFFFF?text=Студия+2'
+        ],
         showings: [],
         rental: {
           currentTenant: {
@@ -91,12 +120,14 @@ export const useAgentStore = defineStore('agent', {
     modals: {
       propertyModal: false,
       profileModal: false,
-      editPropertyModal: false
+      editPropertyModal: false,
+      subscriptionModal: false
     },
 
     selectedProperty: null,
 
-    tempCoordinates: null
+    tempCoordinates: null,
+    tempAddress: null
   }),
 
   getters: {
@@ -110,13 +141,7 @@ export const useAgentStore = defineStore('agent', {
 
     totalProperties: (state) => state.properties.length,
 
-    paidPropertiesCount: (state) => {
-      return state.properties.filter(property => property.status === 'paid').length
-    },
 
-    unpaidPropertiesCount: (state) => {
-      return state.properties.filter(property => property.status === 'unpaid').length
-    }
   },
 
   actions: {
@@ -130,7 +155,7 @@ export const useAgentStore = defineStore('agent', {
       const newProperty = {
         id: Date.now(),
         ...propertyData,
-        status: 'unpaid',
+
         createdAt: new Date(),
         coordinates: coordinates,
         tags: propertyData.tags || [],
@@ -165,12 +190,7 @@ export const useAgentStore = defineStore('agent', {
       }
     },
 
-    payForProperty(propertyId) {
-      const property = this.properties.find(p => p.id === propertyId)
-      if (property) {
-        property.status = 'paid'
-      }
-    },
+
 
     updateMapSettings(settings) {
       this.mapSettings = { ...this.mapSettings, ...settings }
@@ -377,6 +397,55 @@ export const useAgentStore = defineStore('agent', {
       } catch (error) {
         console.error('Failed to delete property:', error)
         throw error
+      }
+    },
+
+    async paySubscription(amount) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+
+        this.agent.subscriptionStatus = 'active'
+        this.agent.lastPaymentDate = new Date()
+
+        const nextPayment = new Date()
+        nextPayment.setMonth(nextPayment.getMonth() + 1)
+        this.agent.nextPaymentDate = nextPayment
+
+        const newPayment = {
+          id: Date.now(),
+          date: new Date().toISOString(),
+          amount: amount,
+          status: 'success'
+        }
+        this.agent.paymentHistory.unshift(newPayment)
+
+        return true
+      } catch (error) {
+        console.error('Failed to pay subscription:', error)
+        throw error
+      }
+    },
+
+    checkSubscriptionStatus() {
+      const now = new Date()
+      const nextPayment = new Date(this.agent.nextPaymentDate)
+
+      if (now > nextPayment) {
+        this.agent.subscriptionStatus = 'inactive'
+      }
+
+      return this.agent.subscriptionStatus === 'active'
+    },
+
+    canEditProperties() {
+      return this.checkSubscriptionStatus()
+    },
+
+    getVisibleProperties() {
+      if (this.checkSubscriptionStatus()) {
+        return this.properties
+      } else {
+        return []
       }
     }
   }

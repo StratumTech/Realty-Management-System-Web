@@ -174,6 +174,31 @@ export const usersApi = {
   // PUT /api/v1/users/profile
   updateProfile(profileData) {
     return apiClient.put('/users/profile', profileData)
+  },
+
+  // POST /api/v1/users/avatar - загрузка аватара
+  uploadAvatar(file) {
+    const formData = new FormData()
+    formData.append('avatar', file)
+
+    return apiClient.request('/users/avatar', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        // Убираем Content-Type для FormData
+        ...apiClient.getAuthHeaders()
+      }
+    })
+  },
+
+  // GET /api/v1/users/avatar - получение аватара
+  getAvatar() {
+    return apiClient.get('/users/avatar')
+  },
+
+  // DELETE /api/v1/users/avatar - удаление аватара
+  deleteAvatar() {
+    return apiClient.delete('/users/avatar')
   }
 }
 
