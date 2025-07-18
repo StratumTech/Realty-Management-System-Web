@@ -1,0 +1,62 @@
+{
+  "content": [
+    {
+      "propertyUuid": "test-uuid-1",
+      "userUuid": "agent-uuid-1",
+      "regionId": 1,
+      "title": "Тестовая квартира 1",
+      "type": "APARTMENT",
+      "dealType": "SALE",
+      "price": 5000000,
+      "rooms": 2,
+      "area": 65.5,
+      "features": ["PARKING", "BALCONY", "ELEVATOR"],
+      "address": "Москва, ул. Тверская, 1",
+      "description": "Отличная квартира в центре города с евроремонтом",
+      "latitude": 55.7558,
+      "longitude": 37.6176,
+      "createdAt": "2024-01-15T10:30:00Z",
+      "updatedAt": "2024-01-15T10:30:00Z"
+    },
+    {
+      "propertyUuid": "test-uuid-2",
+      "userUuid": "agent-uuid-1",
+      "regionId": 1,
+      "title": "Тестовая квартира 2",
+      "type": "STUDIO",
+      "dealType": "RENT",
+      "price": 80000,
+      "rooms": 1,
+      "area": 35.0,
+      "features": ["BALCONY"],
+      "address": "Москва, ул. Арбат, 15",
+      "description": "Уютная студия для молодой семьи",
+      "latitude": 55.7522,
+      "longitude": 37.5927,
+      "createdAt": "2024-02-10T14:20:00Z",
+      "updatedAt": "2024-02-10T14:20:00Z"
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 10,
+    "sort": {
+      "sorted": false,
+      "unsorted": true,
+      "empty": true
+    }
+  },
+  "totalPages": 1,
+  "totalElements": 2,
+  "last": true,
+  "first": true,
+  "numberOfElements": 2,
+  "size": 10,
+  "number": 0,
+  "sort": {
+    "sorted": false,
+    "unsorted": true,
+    "empty": true
+  },
+  "empty": false
+}

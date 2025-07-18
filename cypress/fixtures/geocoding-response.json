@@ -1,0 +1,30 @@
+[
+  {
+    "place_id": 123456,
+    "licence": "Data © OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+    "osm_type": "way",
+    "osm_id": 12345678,
+    "lat": "55.7558",
+    "lon": "37.6176",
+    "display_name": "Тверская улица, 1, Тверской район, Центральный административный округ, Москва, Центральный федеральный округ, 125009, Россия",
+    "address": {
+      "house_number": "1",
+      "road": "Тверская улица",
+      "suburb": "Тверской район",
+      "city_district": "Центральный административный округ",
+      "city": "Москва",
+      "state": "Центральный федеральный округ",
+      "postcode": "125009",
+      "country": "Россия",
+      "country_code": "ru"
+    },
+    "boundingbox": [
+      "55.7550",
+      "55.7566",
+      "37.6170",
+      "37.6182"
+    ],
+    "importance": 0.9,
+    "type": "building"
+  }
+]
